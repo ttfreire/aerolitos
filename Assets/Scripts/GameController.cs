@@ -2,48 +2,65 @@
 using System.Collections;
 using UnityEngine.SceneManagement;
 
-public class GameController : MonoBehaviour {
+public class GameController : MonoBehaviour{
     enum GameState  {None, Menu, Running, Paused, GameOver};
-    GameState m_currentState; 
-    AstronautController m_AstronautController;
-    UIInformationController m_UIInformationController;
-    // Use this for initialization
+    GameState currentState; 
+    AstronautController astronautController;
+    UIInformationController UIInformationController;
+    float rotationInput, movementInput = 0;
+
     void Awake () {
-        m_AstronautController = GameObject.FindObjectOfType<AstronautController>();
-        m_UIInformationController = GameObject.FindObjectOfType<UIInformationController>();
-        m_currentState = GameState.Running;
+        astronautController = GameObject.FindObjectOfType<AstronautController>();
+        UIInformationController = GameObject.FindObjectOfType<UIInformationController>();
+        currentState = GameState.Running;
     }
 
-    // Update is called once per frame
     void Update()
     {
         UpdateGameState();
     }
 
-    void FixedUpdate()
-    {
-        
-
-    }
-
     void GetPlayerInput()
     {
-        //Player Rotation
-        m_AstronautController.Rotate(Input.GetAxis("Horizontal"));
+        rotationInput = Input.GetAxis("Horizontal");
+        movementInput = Input.GetAxis("Thrust");
+    }
 
-        //Player Movement
-        if (Input.GetKey(KeyCode.Space) && m_AstronautController.GetCurrentOxygen() > 0)
+    void MovePlayer()
+    {
+        if (playerCanMove())
         {
-            m_UIInformationController.DisplayCurrentOxygen();
-            m_AstronautController.Move();
+            UIInformationController.DisplayCurrentOxygen();
+            astronautController.Move();
         }
+    }
+
+    void RotatePlayer()
+    {
+        if (IsRotationInputActive())
+        {
+            astronautController.Rotate(rotationInput);
+        }
+    }
+
+    bool IsRotationInputActive()
+    {
+        if (rotationInput == 0)
+            return false;
+        else
+            return true;
+    }
+
+    bool playerCanMove()
+    {
+        return movementInput > 0 && astronautController.IsDead() == false;
     }
 
     void EnterGameState(GameState newState)
     {
         ExitGameState();
-        m_currentState = newState;
-        switch (m_currentState)
+        currentState = newState;
+        switch (currentState)
         {
             case GameState.None:
                 break;
@@ -52,16 +69,17 @@ public class GameController : MonoBehaviour {
             case GameState.Running:
                 break;
             case GameState.Paused:
+                PauseGame();
                 break;
             case GameState.GameOver:
-                m_UIInformationController.DisplayGameOver();
+                UIInformationController.DisplayGameOver();
                 break;
         }
     }
 
     void UpdateGameState()
     {
-        switch (m_currentState)
+        switch (currentState)
         {
             case GameState.None:
                 break;
@@ -69,10 +87,16 @@ public class GameController : MonoBehaviour {
                 break;
             case GameState.Running:
                 GetPlayerInput();
-                if (m_AstronautController.IsDead())
+                RotatePlayer();
+                MovePlayer();
+                if (astronautController.IsDead())
                     EnterGameState(GameState.GameOver);
+                if (IsPauseButtonPressed())
+                    EnterGameState(GameState.Paused);
                 break;
             case GameState.Paused:
+                if (IsPauseButtonPressed())
+                    EnterGameState(GameState.Running);
                 break;
             case GameState.GameOver:
                 if (Input.GetKey(KeyCode.R))
@@ -81,9 +105,14 @@ public class GameController : MonoBehaviour {
         }
     }
 
+    private static bool IsPauseButtonPressed()
+    {
+        return Input.GetKeyDown(KeyCode.P);
+    }
+
     void ExitGameState()
     {
-        switch (m_currentState)
+        switch (currentState)
         {
             case GameState.None:
                 break;
@@ -92,9 +121,20 @@ public class GameController : MonoBehaviour {
             case GameState.Running:
                 break;
             case GameState.Paused:
+                ContinueGame();
                 break;
             case GameState.GameOver:
                 break;
         }
+    }
+
+    void PauseGame()
+    {
+        Time.timeScale = 0;
+    }
+
+    void ContinueGame()
+    {
+        Time.timeScale = 1;
     }
 }
